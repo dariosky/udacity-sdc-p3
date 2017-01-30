@@ -35,17 +35,20 @@ def telemetry(sid, data):
     image = Image.open(BytesIO(base64.b64decode(imgString)))
     image_array = np.asarray(image)
     steering_angle = 0
-    image_array_b, _ = flipped(image_array, steering_angle)
-    image_array, _ = invariant(image_array, steering_angle)
-    transformed_image_a = image_array[None, :, :, :]
-    transformed_image_b = image_array_b[None, :, :, :]
+
+    image_array_a, _ = invariant(image_array, steering_angle)
+    transformed_image_a = image_array_a[None, :, :, :]
     # This model currently assumes that the features of the model are just the images.
     #  Feel free to change this.
     steering_angle_a = float(model.predict(transformed_image_a, batch_size=1))
-    steering_angle_b = float(model.predict(transformed_image_b, batch_size=1))
-    steering_angle = statistics.mean([steering_angle_a,
-                                      -steering_angle_b,
-                                      ])
+
+    # image_array_b, _ = flipped(image_array, steering_angle)
+    # transformed_image_b = image_array_b[None, :, :, :]
+    # steering_angle_b = float(model.predict(transformed_image_b, batch_size=1))
+    steering_angle = statistics.mean([
+        steering_angle_a,
+        # -steering_angle_b,
+    ])
 
     # The driving model currently just outputs a constant throttle. Feel free to edit this.
     if speed > 15 and abs(steering_angle) > 0.1:
@@ -71,8 +74,8 @@ def telemetry(sid, data):
 def connect(sid, environ):
     print("connect ", sid)
     send_control({'steering_angle': str(0),
-                   'throttle': str(0),
-                   })
+                  'throttle': str(0),
+                  })
 
 
 def send_control(data):
