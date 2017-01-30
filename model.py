@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from pathlib import Path
 
 from keras.layers.convolutional import Convolution2D
 from keras.layers.core import Dense, Activation, Flatten, Dropout
@@ -35,16 +34,21 @@ def load_model(filename="model"):
         print(e)
 
 
-# model.add(Activation('softmax'))
-DO_TRAIN_MODEL = True  # Train always
-POOLING = True
-if __name__ == '__main__':
+def get_model(DO_TRAIN_MODEL=False, POOLING=True):
+    """
+    :type DO_TRAIN_MODEL: bool  when true, the model is also trained (even if it already exists)
+    :type POOLING: bool when true we add the POOLING layes after the convnet
+    """
     image_shape = (90, 320, 3)
     model = load_model()
     if not model:
         # ************  MODEL DEFINITION ************
         print("Building model from scratch")
+
+        # This is based on the NVIDIA paper - adapted with pooling and dropout
         model = Sequential()
+
+        # 5 convolutional layers ***
 
         model.add(Convolution2D(24, 5, 5, input_shape=image_shape))
         model.add(Activation('relu'))
@@ -66,6 +70,8 @@ if __name__ == '__main__':
 
         model.add(Dropout(0.2))
         model.add(Flatten())
+
+        # 5 dense layers ***
 
         model.add(Dense(1164))
         model.add(Activation('relu'))
@@ -95,9 +101,15 @@ if __name__ == '__main__':
             loss='mse'
         )
         history = model.fit_generator(generator=img_set_generator_factory(selected, batch_size=128),
-                                      # validation_data=img_set_generator_factory(selected),
                                       samples_per_epoch=len(selected),
-                                      # nb_val_samples=len(selected) * 0.2,
                                       nb_epoch=10)
 
         save_model(model)
+    return model
+
+
+if __name__ == '__main__':
+    # get_model load the model from disk (if any) or generate one from scratch and train it
+    # if DO_TRAIN_MODEL is passed, training will be done on every call (useful for refinement)
+
+    model = get_model()
