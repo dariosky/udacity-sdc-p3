@@ -1,0 +1,10 @@
+.ipynb_checkpoints
+*.py[co]
+__pycache__/
+
+
+# references documentation
+/doc/
+
+# test model experiments
+/model_experiments/
