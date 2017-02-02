@@ -51,10 +51,12 @@ def telemetry(sid, data):
     ])
 
     # The driving model currently just outputs a constant throttle. Feel free to edit this.
+    if abs(steering_angle) < 0.1:
+        steering_angle = 0
     if speed > 15 and abs(steering_angle) > 0.1:
-        throttle = -2
+        throttle = -1
     else:
-        throttle = 0.2
+        throttle = 0.4
     try:
         print("steer: {steering:4.3f} speed:{speed:3f} throttle:{throttle:3.1f}".format(
             steering=steering_angle,

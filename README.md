@@ -4,11 +4,9 @@ P3 - Behavioral cloning
 
 # Data collection and augmentation
 
-Let's start getting the images.
+First step in the process was getting the images for the training rounds, those come from both data augmentation and by recording new driving sessions with the simulator.
 
-I used the sample data for track 1, then I was looking to get new training data in in the simulator.
-
-Driving the car properly for training was the major problem in my case, I found the sample dataset having a much smoother input and it's training behaviour was much more accurate.
+Driving the car properly for training was not so easy, I found the sample dataset having a smoother input and it's training lead to accurate results.
 This is probably due to the keyboard input that produce hard turns and make the trained model more "wobbling".
 
 At first I used the dev version, using the mouse seemed an interesting thing to have smooth angles, but it ends up to be hard to control, and I was producing bad data.
@@ -17,7 +15,8 @@ Also I liked in the stable version, that 3 pictures are taken, it allow to produ
 
 I'm considering the left/right images, correcting the angle of 0.20 (in the direction of the center of the road).
 
-Using a throttle/brake adjustment based on the predicted steer I was able to get good results, and surprisingly to train a model that complete the first track using only the Udacity samples.
+Using a throttle/brake adjustment based on the predicted steer I was able to get good results, and to train a model that complete the first track using only the Udacity samples.
+On a second round, I refined the model with my recordings (shuffled and applying a random variant at every iteration), using a little more of the 20% of the sample size for validation.
 
 To parse the CSV, validate that the images exist and dealing with different recording session I created the `ImageSet` class in the `image.py`. It is used to collect all the center/left/right images and save them with the "corrected" steer.
 
@@ -55,7 +54,9 @@ from matplotlib import pyplot as plt
 import matplotlib.image as mpimg
 import cv2
 ```
+
 ## Loaded the sample set
+
 Let's see some random image for the training set (this is the first group of my recording).  
 A positive angle means the car will turn right, negative means left.
 
@@ -63,7 +64,9 @@ In the normalization, when training I choose randomly one of the variations of t
 the original or a horizontal flip (with inverted steer).
 Both of them are cutted top-bottom so to remove the car hood and part of the sky (that is not relevant)
 
-Here, for a random image I display the variations
+Here, for a random image I display the variations.
+For the track 1, normalizing the luminosity via the Y channel, doesn't seem useful, as the track is constantly bright. Surely it could be useful for track 2.
+
 
 ```python
 from normalization import *
@@ -137,14 +140,22 @@ model.compile(
     loss='mse'
 )
 
-selected_set = sample_set
-history = model.fit_generator(generator=img_set_generator_factory(selected_set, batch_size=128),
-                              samples_per_epoch=len(selected_set),
-                              nb_epoch=2)
+selected = trained_set + refine_set
+history = model.fit_generator(generator=img_set_generator_factory(selected, batch_size=128),
+                                      validation_data=img_set_generator_factory(sample_set,
+                                                                                batch_size=128),
+                                      nb_val_samples=len(selected) * 0.2,
+                                      samples_per_epoch=len(selected),
+                                      nb_epoch=5)
 ```
 
     Epoch 1/2
     24192/24108 [==============================] - 257s - loss: 0.0152   
+
+    /home/dario/anaconda3/envs/drive/lib/python3.5/site-packages/keras/engine/training.py:1527: UserWarning: Epoch comprised more than `samples_per_epoch` samples, which might affect learning results. Set `samples_per_epoch` correctly to avoid this warning.
+      warnings.warn('Epoch comprised more than '
+
+
     
     Epoch 2/2
     24192/24108 [==============================] - 251s - loss: 0.0153   
@@ -160,13 +171,15 @@ The drive part didn't require many changes, but one, that I found useful.
 
 While trying to use as less data as possible, I found that correcting the speed based on the predicted steering was really helpful.
 
-I changed the call to `send_control` to set a throttle of 0.2, accelerating, always but when the speed is over 15 and the steering angle has an aplitutde > 0.1 we break a little.
+I changed the call to `send_control` to set a throttle of 0.4, accelerating, but when the speed is over 15 and the steering angle has an aplitutde > 0.1 we break a little (-1).
 
 This approach, works quite well and the car go fast enough on the straight lanes, and slow down and oscillate a little on the curves.
 
-# Future improvements
+To avoid correcting too frequently the steer, and minimize wobbling, I added a small filter:  
+`if abs(steering_angle) < 0.1: steering_angle = 0`  
+as a result the car sometime arrive close to the edge, but at least doesn't change direction too often.
 
-I'm waiting for an analog joystick to be able to get better car recording. Given the results with a limited dataset having proper additional data would be beneficial. The advantage was that the training phase last only ~1 hour on my laptop GPU.
+# Future improvements
 
 Given the time constrain I didn't spent time on training and trying the 2nd track, however I left in the normalization the ImageDataGenerator keras generator, that is really promising to generate a large amount of derived images, useful for the 2nd track when we sometime have up and down shifts.
 

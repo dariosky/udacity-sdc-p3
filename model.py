@@ -88,11 +88,10 @@ def get_model(DO_TRAIN_MODEL=False, POOLING=True):
 
     if DO_TRAIN_MODEL:
         sample_set = get_sample_set()
-        # trained_set = get_training_set()
-        # refine_set = get_refinement_set()
-        full_set = sample_set  # + trained_set + refine_set
+        trained_set = get_training_set()
+        refine_set = get_refinement_set()
 
-        selected = full_set
+        selected = trained_set + refine_set
 
         # ****************** TRAINING ***************
         print("Training from %s" % selected)
@@ -101,8 +100,11 @@ def get_model(DO_TRAIN_MODEL=False, POOLING=True):
             loss='mse'
         )
         history = model.fit_generator(generator=img_set_generator_factory(selected, batch_size=128),
+                                      validation_data=img_set_generator_factory(sample_set,
+                                                                                batch_size=128),
+                                      nb_val_samples=len(selected) * 0.2,
                                       samples_per_epoch=len(selected),
-                                      nb_epoch=10)
+                                      nb_epoch=5)
 
         save_model(model)
     return model
@@ -112,4 +114,4 @@ if __name__ == '__main__':
     # get_model load the model from disk (if any) or generate one from scratch and train it
     # if DO_TRAIN_MODEL is passed, training will be done on every call (useful for refinement)
 
-    model = get_model()
+    model = get_model(DO_TRAIN_MODEL=True)
