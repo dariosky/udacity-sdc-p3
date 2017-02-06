@@ -41,9 +41,16 @@ class ImageSet:
         return new
 
     def __str__(self, *args, **kwargs):
-        return "I have {size} images in the set.".format(
-            size=len(self.images)
+        return "{name} - {size} images in the set.".format(
+            size=len(self.images),
+            name=self.name
         )
+
+    def __getitem__(self, item):
+        r = ImageSet(name=self.name + " extract", correction=self.correction)
+        r.images = self.images[item]
+        r.steers = self.steers[item]
+        return r
 
 
 def set_from_folder(folder: Path, name="friendly name"):
@@ -77,16 +84,16 @@ def set_from_folder(folder: Path, name="friendly name"):
             if valid:
                 # if we don't have the center image, ignore the others
                 if left:
-                    imgset.append(left, steer + CORRECTION_LEVEL)
+                    imgset.append(left, steer * CORRECTION_MULTIPLIER)
                 if right:
-                    imgset.append(right, steer - CORRECTION_LEVEL)
+                    imgset.append(right, steer * CORRECTION_MULTIPLIER)
     return imgset
 
 
-CORRECTION_LEVEL = 0.20  # intensitiy of correction for the left/right views (move to the center)
+CORRECTION_MULTIPLIER = 2  # intensitiy of correction for the left/right views (move to the center)
 STEERING_MAX = 1.0  # cap the steer to this amount
 
-print("Balancing leftright of %s" % CORRECTION_LEVEL)
+print("Balancing leftright of %s" % CORRECTION_MULTIPLIER)
 
 
 def get_training_set():
@@ -100,8 +107,10 @@ def get_sample_set():
 
 
 def get_refinement_set():
-    return set_from_folder(Path("/home/dario/tmp/driverecords/30 morning session"),
-                           "Refinement 1")
+    # return set_from_folder(Path("/home/dario/tmp/driverecords/30 morning session"),
+    #                        "Refinement 1")
+    return set_from_folder(Path("/home/dario/tmp/driverecords/full_screen"),
+                           "Refinement 2")
 
 
 if __name__ == '__main__':

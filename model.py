@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 from keras.layers.convolutional import Convolution2D
-from keras.layers.core import Dense, Activation, Flatten, Dropout
+from keras.layers.core import Dense, Activation, Flatten, Dropout, Lambda
+from keras.layers.normalization import BatchNormalization
 from keras.layers.pooling import MaxPooling2D
 from keras.models import Sequential, model_from_json
 
@@ -48,9 +49,12 @@ def get_model(DO_TRAIN_MODEL=False, POOLING=True):
         # This is based on the NVIDIA paper - adapted with pooling and dropout
         model = Sequential()
 
-        # 5 convolutional layers ***
+        # Normalization layers
+        # Normalize values in the range [-0.5, 0.5]
+        model.add(Lambda(lambda x: x / 255 - 0.5, input_shape=image_shape))
 
-        model.add(Convolution2D(24, 5, 5, input_shape=image_shape))
+        # 5 convolutional layers ***
+        model.add(Convolution2D(24, 5, 5))
         model.add(Activation('relu'))
         if POOLING: model.add(MaxPooling2D(pool_size=(2, 2)))
 
@@ -88,10 +92,14 @@ def get_model(DO_TRAIN_MODEL=False, POOLING=True):
 
     if DO_TRAIN_MODEL:
         sample_set = get_sample_set()
-        trained_set = get_training_set()
+        # trained_set = get_training_set()
         refine_set = get_refinement_set()
 
-        selected = trained_set + refine_set
+        selected = (
+            # trained_set +
+            # refine_set +
+            sample_set
+        )
 
         # ****************** TRAINING ***************
         print("Training from %s" % selected)
@@ -99,12 +107,12 @@ def get_model(DO_TRAIN_MODEL=False, POOLING=True):
             optimizer='adam',
             loss='mse'
         )
-        history = model.fit_generator(generator=img_set_generator_factory(selected, batch_size=128),
-                                      validation_data=img_set_generator_factory(sample_set,
-                                                                                batch_size=128),
-                                      nb_val_samples=len(selected) * 0.2,
-                                      samples_per_epoch=len(selected),
-                                      nb_epoch=5)
+        model.fit_generator(generator=img_set_generator_factory(selected, batch_size=128),
+                            validation_data=img_set_generator_factory(sample_set,
+                                                                      batch_size=128),
+                            nb_val_samples=len(selected) * 0.2,
+                            samples_per_epoch=len(selected) * 10,
+                            nb_epoch=5)
 
         save_model(model)
     return model

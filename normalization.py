@@ -3,18 +3,18 @@
 # we'll flib horizontally
 import random
 
-from keras.preprocessing.image import ImageDataGenerator
-import numpy as np
 import matplotlib.image as mpimg
+import matplotlib.pyplot as plt
+import numpy as np
+from keras.preprocessing.image import ImageDataGenerator
 from sklearn.utils import shuffle
-import cv2
 
 datagen = ImageDataGenerator(
-    # rotation_range=5,
+    rotation_range=5,
     # width_shift_range=0.1,
     # height_shift_range=0.1,
     # shear_range=0.2,
-    # horizontal_flip=True,
+    # horizontal_flip=True, # we do it on variation inverting steer
     fill_mode='nearest'
 )
 
@@ -33,7 +33,7 @@ variants = (
 )
 
 
-def img_set_generator_factory(selected_set, image_shape=(90, 320, 3), batch_size=32):
+def img_set_generator_factory(selected_set, image_shape=(90, 320, 3), batch_size=128):
     """ This Keras generator takes a selected_set
     (that is groups of valid center-left-right paths with steers)
     and create a batch for the fit function
@@ -56,5 +56,29 @@ def img_set_generator_factory(selected_set, image_shape=(90, 320, 3), batch_size
             index += 1
             if index == batch_size:
                 # print("returning", batch_x.shape, batch_y.shape)
-                yield (batch_x, batch_y)
+                variations = 0
+                for var in datagen.flow(batch_x, batch_y):
+                    yield var
+                    variations += 1
+                    if variations >= random.randint(2, 6):  # add some rotation variant
+                        break
                 index = 0
+
+
+def show_variations(variations=5):
+    from images import get_sample_set
+    sample_set = get_sample_set()
+    selected_set = sample_set
+    rnd = random.randint(0, len(selected_set) - 1)
+    cutSet = selected_set[rnd:rnd + 1]
+    print(cutSet)
+    n = 0
+    for x, y in img_set_generator_factory(selected_set, batch_size=1):
+        n += 1
+        plt.imshow(x[0])
+        plt.show()
+        if n > variations: break
+
+
+if __name__ == '__main__':
+    show_variations()
