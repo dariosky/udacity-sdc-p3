@@ -1,5 +1,6 @@
 # Working with the training images
 from pathlib import Path
+from sklearn.utils import shuffle
 
 
 class ImageSet:
@@ -47,15 +48,22 @@ class ImageSet:
         )
 
     def __getitem__(self, item):
+        """ This support custom cuts and slices on the images sets """
         r = ImageSet(name=self.name + " extract", correction=self.correction)
         r.images = self.images[item]
         r.steers = self.steers[item]
         return r
 
+    def shuffle(self):
+        """ Shuffle the sets """
+        self.images, self.steers = shuffle(self.images, self.steers)
 
-def set_from_folder(folder: Path, name="friendly name"):
-    """ Return a Training set reading csv and images from folder """
-    print("Checking %s" % folder)
+
+def set_from_folder(folder: Path, name="friendly name", nozeroes=False):
+    """ Return a Training set reading csv and images from folder
+    :type nozeroes: bool when true the zero steering are filtered out
+    """
+    print("Parsing %s" % folder, end=" ")
     csv_path = folder / 'driving_log.csv'
     if not csv_path.exists():
         raise Exception("Invalid folder %s" % folder)
@@ -73,6 +81,8 @@ def set_from_folder(folder: Path, name="friendly name"):
             except ValueError:
                 continue
             # clean the images, and set them relative to the csv if needed
+            if nozeroes and steer < 0.01:
+                continue
             center, left, right = [
                 None if not s else
                 Path(s) if Path(s).is_absolute() else working_dir / Path(s)
@@ -84,34 +94,46 @@ def set_from_folder(folder: Path, name="friendly name"):
             if valid:
                 # if we don't have the center image, ignore the others
                 if left:
-                    imgset.append(left, steer * CORRECTION_MULTIPLIER)
+                    imgset.append(left, steer + CORRECTION_LEVEL)
                 if right:
-                    imgset.append(right, steer * CORRECTION_MULTIPLIER)
+                    imgset.append(right, steer - CORRECTION_LEVEL)
+    imgset.shuffle()
+    print(len(imgset.images))
     return imgset
 
 
-CORRECTION_MULTIPLIER = 2  # intensitiy of correction for the left/right views (move to the center)
+CORRECTION_LEVEL = 0.20  # intensitiy of correction for the left/right views (move to the center)
 STEERING_MAX = 1.0  # cap the steer to this amount
 
-print("Balancing leftright of %s" % CORRECTION_MULTIPLIER)
+print("Balancing leftright of %s" % CORRECTION_LEVEL)
 
 
-def get_training_set():
-    training_folder = Path("/home/dario/tmp/driverecords")
-    return set_from_folder(training_folder, "My records")
-
-
-def get_sample_set():
+def get_sample_set(nozeroes=False):
     training_folder = Path("/home/dario/tmp/driverecords/data")
-    return set_from_folder(training_folder, "Udacity sample")
+    return set_from_folder(training_folder, "Udacity sample",
+                           nozeroes=nozeroes)
 
 
-def get_refinement_set():
-    # return set_from_folder(Path("/home/dario/tmp/driverecords/30 morning session"),
-    #                        "Refinement 1")
+def get_training_set(nozeroes=True):
+    training_folder = Path("/home/dario/tmp/driverecords")
+    return set_from_folder(training_folder, "My records",
+                           nozeroes=nozeroes)
+
+
+def get_refinement_set_1(nozeroes=True):
+    return set_from_folder(Path("/home/dario/tmp/driverecords/30 morning session"),
+                           "Refinement 1",
+                           nozeroes=nozeroes)
+
+
+def get_refinement_set_2(nozeroes=True):
     return set_from_folder(Path("/home/dario/tmp/driverecords/full_screen"),
-                           "Refinement 2")
+                           "Refinement 2",
+                           nozeroes=nozeroes)
 
 
 if __name__ == '__main__':
-    print(get_refinement_set())
+    print(get_sample_set() +
+          get_training_set() +
+          get_refinement_set_1() +
+          get_refinement_set_2())

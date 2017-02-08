@@ -91,30 +91,37 @@ def get_model(DO_TRAIN_MODEL=False, POOLING=True):
         DO_TRAIN_MODEL = True
 
     if DO_TRAIN_MODEL:
-        sample_set = get_sample_set()
-        # trained_set = get_training_set()
-        refine_set = get_refinement_set()
-
         selected = (
-            # trained_set +
-            # refine_set +
-            sample_set
+            get_sample_set()
+            # get_training_set() +
+            # get_refinement_set_1() +
+            # get_refinement_set_2()
         )
 
         # ****************** TRAINING ***************
-        print("Training from %s" % selected)
         model.compile(
             optimizer='adam',
             loss='mse'
         )
-        model.fit_generator(generator=img_set_generator_factory(selected, batch_size=128),
-                            validation_data=img_set_generator_factory(sample_set,
-                                                                      batch_size=128),
-                            nb_val_samples=len(selected) * 0.2,
-                            samples_per_epoch=len(selected) * 10,
-                            nb_epoch=5)
 
-        save_model(model)
+        print("Training from %s" % selected)
+        tot_training_samples = len(selected)
+        nb_val_samples = tot_training_samples * 20 // 100
+        print("Using validation set of %d" % nb_val_samples)
+        # split validation set and training set
+        selected.shuffle()
+        selected, validation_set = selected[:-nb_val_samples], selected[-nb_val_samples:]
+
+        num_epochs = 2
+        for epoch in range(num_epochs):
+            # the generator produce 8 variations for every single image
+            model.fit_generator(generator=img_set_generator_factory(selected, batch_size=8),
+                                validation_data=img_set_generator_factory(validation_set,
+                                                                          batch_size=8),
+                                nb_val_samples=len(validation_set) * 8,
+                                samples_per_epoch=len(selected) * 8,
+                                nb_epoch=1)
+            save_model(model)  # let's save on every epoch
     return model
 
 

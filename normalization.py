@@ -33,51 +33,62 @@ variants = (
 )
 
 
-def img_set_generator_factory(selected_set, image_shape=(90, 320, 3), batch_size=128):
+def img_set_generator_factory(selected_set, image_shape=(90, 320, 3),
+                              deformation_variants=3,
+                              batch_size=128):
     """ This Keras generator takes a selected_set
     (that is groups of valid center-left-right paths with steers)
     and create a batch for the fit function
     """
+    variants_number_per_image = len(variants) * (deformation_variants + 1)
+    batch_size = batch_size * (variants_number_per_image)
     batch_x = np.zeros((batch_size,) + image_shape)
     batch_y = np.zeros((batch_size), dtype=np.float32)
+    s = selected_set
     index = 0
     while 1:
-        s = selected_set
         s.images, s.steers = shuffle(s.images, s.steers)  # shuffle on every loop
 
         for img_path, steer in zip(s.images, s.steers):
             img = mpimg.imread(img_path)  # img
-            # Let's cut the original image to avoid the car hood and the top sky
 
-            variant_function = random.choice(variants)
-            # img_yuv = cv2.cvtColor(img, cv2.COLOR_BGR2YUV)
+            # we fill the batch with all the possible variants of the image:
+            #   currently the straight and the hflipped version
+            #   cutting the original image to avoid the car hood and the top sky
+            for variant_function in variants:
+                x, y = variant_function(img, steer)
+                batch_x[index], batch_y[index] = (x, y)  # add the undeformed image
+                index += 1
 
-            batch_x[index], batch_y[index] = variant_function(img, steer)
-            index += 1
-            if index == batch_size:
-                # print("returning", batch_x.shape, batch_y.shape)
-                variations = 0
-                for var in datagen.flow(batch_x, batch_y):
-                    yield var
-                    variations += 1
-                    if variations >= random.randint(2, 6):  # add some rotation variant
-                        break
+                # then we use the datagen flow that creates some variant of the images
+                # with rotations and so
+                variants_iterator = datagen.flow(np.array([x]), np.array([y]))
+                for variation in range(deformation_variants):
+                    batch_x[index], batch_y[index] = variants_iterator.next()
+                    index += 1
+
+            if index >= batch_size:
+                yield batch_x, batch_y
                 index = 0
 
 
-def show_variations(variations=5):
+def show_variations(variations=3):
     from images import get_sample_set
     sample_set = get_sample_set()
     selected_set = sample_set
     rnd = random.randint(0, len(selected_set) - 1)
     cutSet = selected_set[rnd:rnd + 1]
     print(cutSet)
-    n = 0
-    for x, y in img_set_generator_factory(selected_set, batch_size=1):
-        n += 1
-        plt.imshow(x[0])
-        plt.show()
-        if n > variations: break
+    for batch_x, batch_y in img_set_generator_factory(cutSet,
+                                                      # the batch return 1 image with all variations
+                                                      batch_size=1,
+                                                      deformation_variants=variations):
+
+        for x, y in zip(batch_x, batch_y):
+            plt.imshow(x)
+            print(y)
+            plt.show()
+        break
 
 
 if __name__ == '__main__':
