@@ -1,5 +1,6 @@
 
-P3 - Behavioral cloning
+# P3 - Behavioral cloning
+
 -----------------------
 
 # Data collection and augmentation
@@ -7,7 +8,7 @@ P3 - Behavioral cloning
 First step in the process was getting the images for the training rounds, those come from both data augmentation and by recording new driving sessions with the simulator.
 
 Driving the car properly for training was not so easy, I found the sample dataset having a smoother input and it's training lead to accurate results.
-This is probably due to the keyboard input that produce hard turns and make the trained model more "wobbling".
+This is due to the keyboard input that produce hard turns and make the trained model more "wobbling".
 
 At first I used the dev version, using the mouse seemed an interesting thing to have smooth angles, but it ends up to be hard to control, and I was producing bad data.
 (as a result, I started deleting some batch of images when I was going out of road, so in the cleanup below, I'm filtering out csv lines leading to inexistents files).
@@ -18,14 +19,13 @@ I'm considering the left/right images, correcting the angle of 0.20 (in the dire
 Using a throttle/brake adjustment based on the predicted steer I was able to get good results, and to train a model that complete the first track using only the Udacity samples.
 On a second round, I refined the model with my recordings (shuffled and applying a random variant at every iteration), using a little more of the 20% of the sample size for validation.
 
-To parse the CSV, validate that the images exist and dealing with different recording session I created the `ImageSet` class in the `image.py`. It is used to collect all the center/left/right images and save them with the "corrected" steer.
+To parse the CSV, validate that the images exist and dealing with different recording session I created the `ImageSet` class in the `image.py`. It is used to collect all the center/left/right images and save them with the "corrected" steer. It features shuffleing slicing and composition of multiple datasets.
 
 
 ```python
-%load_ext autoreload
+% load_ext autoreload
 % autoreload 2
 % matplotlib inline
-
 ```
 
 
@@ -38,11 +38,13 @@ To parse the CSV, validate that the images exist and dealing with different reco
 from images import *
 sample_set = get_sample_set()
 training_set = get_training_set()
+refinement_set = get_refinement_set_1() + get_refinement_set_2()
 ```
 
-    Balancing leftright of 0.2
-    Checking /home/dario/tmp/driverecords/data
-    Checking /home/dario/tmp/driverecords
+    Parsing /home/dario/tmp/driverecords/data 24108
+    Parsing /home/dario/tmp/driverecords 2025
+    Parsing /home/dario/tmp/driverecords/30 morning session 915
+    Parsing /home/dario/tmp/driverecords/full_screen 633
 
 
 
@@ -62,7 +64,8 @@ A positive angle means the car will turn right, negative means left.
 
 In the normalization, when training I choose randomly one of the variations of the original image:
 the original or a horizontal flip (with inverted steer).
-Both of them are cutted top-bottom so to remove the car hood and part of the sky (that is not relevant)
+Both of them are cutted top-bottom so to remove the car hood and part of the sky (that is not relevant).
+I'm also using the Keras ImageDataGenerator, to produce random rotations of up to 5°.
 
 Here, for a random image I display the variations.
 For the track 1, normalizing the luminosity via the Y channel, doesn't seem useful, as the track is constantly bright. Surely it could be useful for track 2.
@@ -71,36 +74,65 @@ For the track 1, normalizing the luminosity via the Y channel, doesn't seem usef
 ```python
 from normalization import *
 
-selected_set = training_set
-s = training_set
-rnd = random.randint(0, len(s)-1)
-img_path = s.images[rnd]
-orig_steer = s.steers[rnd]
-
-plt.figure()
-plt.title("steer: {steer:2.2f}".format(
-    steer=orig_steer
-    ))
-plt.axis('off')
-image = mpimg.imread(img_path)
-plt.title('original: %2.2f'%orig_steer)
-plt.imshow(image)
-
-plt.figure()
-for i, v in enumerate(variants):
-    img, steer = v(image, orig_steer)
-    plt.subplot(1,2,i+1); plt.axis('off')
-    plt.title('variant: %2.2f' % steer)
-    plt.imshow(img)
-
+show_variations()
 ```
 
-
-![png](output_6_0.png)
+    Parsing /home/dario/tmp/driverecords/data 24108
+    Udacity sample extract - 1 images in the set.
+    0.548816
 
 
 
 ![png](output_6_1.png)
+
+
+    0.548816
+
+
+
+![png](output_6_3.png)
+
+
+    0.548816
+
+
+
+![png](output_6_5.png)
+
+
+    0.548816
+
+
+
+![png](output_6_7.png)
+
+
+    -0.548816
+
+
+
+![png](output_6_9.png)
+
+
+    -0.548816
+
+
+
+![png](output_6_11.png)
+
+
+    -0.548816
+
+
+
+![png](output_6_13.png)
+
+
+    -0.548816
+
+
+
+![png](output_6_15.png)
 
 
 # Model
@@ -134,35 +166,35 @@ Images are then cutted like this `img[50:-20, :]` (50px top, 20 pixels bottom)
 
 
 ```python
-from normalization import img_set_generator_factory
 model.compile(
     optimizer='adam',
     loss='mse'
 )
 
-selected = trained_set + refine_set
-history = model.fit_generator(generator=img_set_generator_factory(selected, batch_size=128),
-                                      validation_data=img_set_generator_factory(sample_set,
-                                                                                batch_size=128),
-                                      nb_val_samples=len(selected) * 0.2,
-                                      samples_per_epoch=len(selected),
-                                      nb_epoch=5)
+print("Training from %s" % selected)
+tot_training_samples = len(selected)
+nb_val_samples = tot_training_samples * 20 // 100
+print("Using validation set of %d" % nb_val_samples)
+# split validation set and training set
+selected.shuffle()
+selected, validation_set = selected[:-nb_val_samples], selected[-nb_val_samples:]
+
+num_epochs = 5
+for epoch in range(num_epochs):
+    # the generator produce 8 variations for every single image
+    model.fit_generator(generator=img_set_generator_factory(selected, batch_size=8),
+                        validation_data=img_set_generator_factory(validation_set,
+                                                                  batch_size=8),
+                        nb_val_samples=len(validation_set) * 8,
+                        samples_per_epoch=len(selected) * 8,
+                        nb_epoch=1)
+    save_model(model)  # let's save on every epoch
+
 ```
 
-    Epoch 1/2
-    24192/24108 [==============================] - 257s - loss: 0.0152   
-
-    /home/dario/anaconda3/envs/drive/lib/python3.5/site-packages/keras/engine/training.py:1527: UserWarning: Epoch comprised more than `samples_per_epoch` samples, which might affect learning results. Set `samples_per_epoch` correctly to avoid this warning.
-      warnings.warn('Epoch comprised more than '
-
-
-    
-    Epoch 2/2
-    24192/24108 [==============================] - 251s - loss: 0.0153   
-
-
+I took 20% of the dataset for validation, the normalization is done in the model via a Lambda layer.
 For the current model, as I was mentioning before, I trained only to the sample Udacity dataset.  
-A `batch_size=128` to fit in memory and 10 generations (with a generation big as the dataset size).
+A `batch_size=8` to fit in memory and 10 generations (with a generation big as the dataset size).
 
 
 # Drive
@@ -171,13 +203,9 @@ The drive part didn't require many changes, but one, that I found useful.
 
 While trying to use as less data as possible, I found that correcting the speed based on the predicted steering was really helpful.
 
-I changed the call to `send_control` to set a throttle of 0.4, accelerating, but when the speed is over 15 and the steering angle has an aplitutde > 0.1 we break a little (-1).
+I changed the call to `send_control` to set a throttle of 0.3, accelerating, but when the speed is over 15 and the steering angle has an aplitutde > 0.1 we break a little (-1).
 
 This approach, works quite well and the car go fast enough on the straight lanes, and slow down and oscillate a little on the curves.
-
-To avoid correcting too frequently the steer, and minimize wobbling, I added a small filter:  
-`if abs(steering_angle) < 0.1: steering_angle = 0`  
-as a result the car sometime arrive close to the edge, but at least doesn't change direction too often.
 
 # Future improvements
 

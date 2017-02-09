@@ -87,6 +87,7 @@ def show_variations(variations=3):
         for x, y in zip(batch_x, batch_y):
             plt.imshow(x)
             print(y)
+            plt.axis('off')
             plt.show()
         break
 

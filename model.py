@@ -112,7 +112,7 @@ def get_model(DO_TRAIN_MODEL=False, POOLING=True):
         selected.shuffle()
         selected, validation_set = selected[:-nb_val_samples], selected[-nb_val_samples:]
 
-        num_epochs = 2
+        num_epochs = 5
         for epoch in range(num_epochs):
             # the generator produce 8 variations for every single image
             model.fit_generator(generator=img_set_generator_factory(selected, batch_size=8),

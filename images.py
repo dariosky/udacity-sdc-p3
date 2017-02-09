@@ -2,6 +2,9 @@
 from pathlib import Path
 from sklearn.utils import shuffle
 
+CORRECTION_LEVEL = 0.15  # intensitiy of correction for the left/right views (move to the center)
+STEERING_MAX = 0.6  # cap the steer to this amount
+
 
 class ImageSet:
     def __init__(self, name: str, correction: float = 0):
@@ -101,9 +104,6 @@ def set_from_folder(folder: Path, name="friendly name", nozeroes=False):
     print(len(imgset.images))
     return imgset
 
-
-CORRECTION_LEVEL = 0.20  # intensitiy of correction for the left/right views (move to the center)
-STEERING_MAX = 1.0  # cap the steer to this amount
 
 print("Balancing leftright of %s" % CORRECTION_LEVEL)
 
