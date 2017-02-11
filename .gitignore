@@ -8,3 +8,7 @@ __pycache__/
 
 # test model experiments
 /model_experiments/
+/template
+
+# the recorded images of autonomous drive
+/images

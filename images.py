@@ -1,5 +1,7 @@
 # Working with the training images
 from pathlib import Path
+
+from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
 
 CORRECTION_LEVEL = 0.15  # intensitiy of correction for the left/right views (move to the center)
@@ -62,7 +64,10 @@ class ImageSet:
         self.images, self.steers = shuffle(self.images, self.steers)
 
 
-def set_from_folder(folder: Path, name="friendly name", nozeroes=False):
+def set_from_folder(folder: Path, name="friendly name",
+                    nozeroes=False,
+                    rolling_average=True,
+                    ):
     """ Return a Training set reading csv and images from folder
     :type nozeroes: bool when true the zero steering are filtered out
     """
@@ -109,31 +114,22 @@ print("Balancing leftright of %s" % CORRECTION_LEVEL)
 
 
 def get_sample_set(nozeroes=False):
-    training_folder = Path("/home/dario/tmp/driverecords/data")
+    training_folder = Path("/home/dario/tmp/driverecords/sample")
     return set_from_folder(training_folder, "Udacity sample",
                            nozeroes=nozeroes)
 
 
-def get_training_set(nozeroes=True):
-    training_folder = Path("/home/dario/tmp/driverecords")
+def get_training_set(nozeroes=False):
+    training_folder = Path("/home/dario/tmp/driverecords/dev")
     return set_from_folder(training_folder, "My records",
                            nozeroes=nozeroes)
 
 
-def get_refinement_set_1(nozeroes=True):
-    return set_from_folder(Path("/home/dario/tmp/driverecords/30 morning session"),
-                           "Refinement 1",
-                           nozeroes=nozeroes)
-
-
-def get_refinement_set_2(nozeroes=True):
-    return set_from_folder(Path("/home/dario/tmp/driverecords/full_screen"),
-                           "Refinement 2",
-                           nozeroes=nozeroes)
-
-
 if __name__ == '__main__':
-    print(get_sample_set() +
-          get_training_set() +
-          get_refinement_set_1() +
-          get_refinement_set_2())
+    # print(get_sample_set() +
+    #       get_training_set()
+    #       )
+    train_test_split(
+        get_sample_set()
+
+    )

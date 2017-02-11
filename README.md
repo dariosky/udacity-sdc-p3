@@ -1,214 +1,160 @@
+# Behavioral Cloning Project
 
-# P3 - Behavioral cloning
-
------------------------
-
-# Data collection and augmentation
-
-First step in the process was getting the images for the training rounds, those come from both data augmentation and by recording new driving sessions with the simulator.
-
-Driving the car properly for training was not so easy, I found the sample dataset having a smoother input and it's training lead to accurate results.
-This is due to the keyboard input that produce hard turns and make the trained model more "wobbling".
-
-At first I used the dev version, using the mouse seemed an interesting thing to have smooth angles, but it ends up to be hard to control, and I was producing bad data.
-(as a result, I started deleting some batch of images when I was going out of road, so in the cleanup below, I'm filtering out csv lines leading to inexistents files).
-Also I liked in the stable version, that 3 pictures are taken, it allow to produce a lot more training data, expecially useful for "recovery" normal angles.
-
-I'm considering the left/right images, correcting the angle of 0.20 (in the direction of the center of the road).
-
-Using a throttle/brake adjustment based on the predicted steer I was able to get good results, and to train a model that complete the first track using only the Udacity samples.
-On a second round, I refined the model with my recordings (shuffled and applying a random variant at every iteration), using a little more of the 20% of the sample size for validation.
-
-To parse the CSV, validate that the images exist and dealing with different recording session I created the `ImageSet` class in the `image.py`. It is used to collect all the center/left/right images and save them with the "corrected" steer. It features shuffleing slicing and composition of multiple datasets.
+The goals / steps of this project are the following:
+* Use the simulator to collect data of good driving behavior
+* Build, a convolution neural network in Keras that predicts steering angles from images
+* Train and validate the model with a training and validation set
+* Test that the model successfully drives around track one without leaving the road
+* Summarize the results with a written report
 
 
-```python
-% load_ext autoreload
-% autoreload 2
-% matplotlib inline
+## Rubric Points
+### Here I will consider the [rubric points](https://review.udacity.com/#!/rubrics/432/view) individually and describe how I addressed each point in my implementation.  
+
+---
+### Files Submitted & Code Quality
+
+#### 1. Submission includes all required files and can be used to run the simulator in autonomous mode
+
+My project includes the following files:
+* model.py containing the script to create and train the model
+* drive.py for driving the car in autonomous mode
+* model.h5 containing a trained convolution neural network
+* README.md this file, summarizing the results
+
+A couple of additional utility libraries are included:
+* images.py containing the ImageSet class useful to parse, cleanup and handling the
+ image paths and the steering labels
+* normalization.py containing the code for normalization and the generator
+  augmenting the dataset with random rotation, and horizontal flips.
+
+
+#### 2. Submission includes functional code
+Using the Udacity provided simulator and my drive.py file, the car can be driven autonomously around the track by executing
+```sh
+./drive.py
 ```
 
+(model.h5 is used by default, and images are recorded in the ./images subfolder)
 
-```python
-# get the images and the steer angles
-# clean up the images, considering only ones leading to existing files
-# the collected images are quite big, and are not part of this repository
+#### 3. Submission code is usable and readable
 
+The model.py file contains the code for training and saving the convolution neural network. The file shows the pipeline I used for training and validating the model, and it contains comments to explain how the code works.
 
-from images import *
-sample_set = get_sample_set()
-training_set = get_training_set()
-refinement_set = get_refinement_set_1() + get_refinement_set_2()
-```
+### Model Architecture and Training Strategy
 
-    Parsing /home/dario/tmp/driverecords/data 24108
-    Parsing /home/dario/tmp/driverecords 2025
-    Parsing /home/dario/tmp/driverecords/30 morning session 915
-    Parsing /home/dario/tmp/driverecords/full_screen 633
+#### 1. An appropriate model architecture has been employed
 
+The model is based on the NVIDIA [End to End Learning for Self-Driving Cars](http://images.nvidia.com/content/tegra/automotive/images/2016/solutions/pdf/end-to-end-dl-using-px.pdf)
+and consists of 5 convolution neural network layers and 5 dense layers, as shown in the following schema.
 
+The model includes various ELU layers to introduce nonlinearity, and the data is normalized in the model using a Keras lambda layer (code line 31).
 
-```python
-# Import what we need
-import random
-import numpy as np
-from matplotlib import pyplot as plt
-import matplotlib.image as mpimg
-import cv2
-```
+#### 2. Attempts to reduce overfitting in the model
 
-## Loaded the sample set
+The model contains a Dropout layer (20%) in order to reduce overfitting (model.py lines 52).
 
-Let's see some random image for the training set (this is the first group of my recording).  
-A positive angle means the car will turn right, negative means left.
+After every convolutional layer a MAX Pooling layer (2x2) has been introduced to reduce the spatial size and hence reduce overfitting.
 
-In the normalization, when training I choose randomly one of the variations of the original image:
-the original or a horizontal flip (with inverted steer).
-Both of them are cutted top-bottom so to remove the car hood and part of the sky (that is not relevant).
-I'm also using the Keras ImageDataGenerator, to produce random rotations of up to 5°.
+The model was trained and validated on different data sets to ensure that the model was
+ not overfitting (code line 84-106). (the selected dataset is the union of the Udacity sample + a serie of recordings done with the beta-simulator as 10 Feb 2017) (model.py row 71-76).
 
-Here, for a random image I display the variations.
-For the track 1, normalizing the luminosity via the Y channel, doesn't seem useful, as the track is constantly bright. Surely it could be useful for track 2.
+A validation set of 20% the dataset size is randomly chosen.
 
+The model was tested by running it through the simulator and ensuring that the vehicle could stay on the track.
 
-```python
-from normalization import *
 
-show_variations()
-```
+#### 3. Model parameter tuning
 
-    Parsing /home/dario/tmp/driverecords/data 24108
-    Udacity sample extract - 1 images in the set.
-    0.548816
+The model used an adam optimizer, so the learning rate was not tuned manually (model.py line 80).
 
+#### 4. Appropriate training data
 
+Training data was chosen to keep the vehicle driving on the road.
 
-![png](output_6_1.png)
+I used a combination of center lane driving, recovering from the left and right sides of the road from the Udacity Samples (when using the stable simulator version).
 
+I then started using the beta version (Feb2017) it record only the center camera (the left/right camera are cleaned when imported in the image.py line 67-107).
 
-    0.548816
+To smooth the steering records (my records came from keyboard usage), I processed the training data with a rolling average. For details about how I created the training data, see the next section.
 
+### Model Architecture and Training Strategy
 
+#### 1. Solution Design Approach
 
-![png](output_6_3.png)
+The overall strategy for deriving a model architecture was to combine a set of convolutional layer with dense neural networks layers and to add an appropriate number of layers to reduce overfitting.
 
+My first step was to use a convolution neural network model similar to the NVIDIA Self Driving Cars model, that was implemented for the exact same purpose.
 
-    0.548816
+The large amount of ways to avoid overfitting was quite useful during training: while lowering the loss function I noticed that the error produced on the training set was always in the order of the one produced with the validation set.
+This is a good marker to know that the model is not overfitting.
 
+I had found also that the various Pooling layers helped keeping the size of the hyper-parameters down, and this allowed me to increase the batch size enough, without occurring in memory errors.
 
+I had various challenges to produce correct appropriate driving data with the keyboard, the steering angles are not smooth, using a mouse at full speed was hard to keep the car on track and proceeding slowly was taking ages. I also found that the version of simulator I was using (the stable as of Jan 2017) was behaving differently that the one of the reviewers.
 
-![png](output_6_5.png)
+Namely, in previous submissions, the car was driving correctly (even if wobbling often) on my machine, but not on the reviewers one. I thought it can be for GPU processing power differences (if the `send_control` arrives late the machine keep the old throttle and steering, falling off track). Updating the simulator to the new beta version (in Feb 2017) I found that the behavior was quite different than the one with the stable version!
+Also the produced steering records look a lot better, so I trained again the model and now
+it's easy also record images and video to showcase the proper driving behavior.
 
+I also preprocessed the input steering to smooth them with a rolling average of two consecutive valid records.
 
-    0.548816
+At the end of the process, the vehicle is able to drive autonomously around the track without leaving the road.
 
+#### 2. Final Model Architecture
 
+The final model architecture (model.py lines 27-66) consisted of the model discussed above. Keras model definition is really readable and quickly tweakable, it greatly helped experimenting various parameter changes.
 
-![png](output_6_7.png)
+Here is a visualization of the architecture:
 
+<div style='text-align:center'>
+  ![The model visualized][model]
+</div>
 
-    -0.548816
+#### 3. Creation of the Training Set & Training Process
 
+To capture good driving behavior, for the previous submission I used the stable version
+and I was using the center images, and the left/right one adjusted of 0.15 in the center direction (this helps producing more data, and is based on the intuition that if the car is slightly more on the left we should turn a little more right to move it to the center).
 
+I then used the beta simulator on track1 to record a new dataset, with only center images.
+Both the datasets have been driven using the keyboard, so I added the above-mentioned rolling-average function to smooth them.
 
-![png](output_6_9.png)
+Here an example of a center image, color normalized from the dataset
 
+![alt text][image-center]
 
-    -0.548816
+All the datasets have been normalized (to have a zero average, and ~1 sigma) and augmented.
 
+The augmentation consisted of random small rotations (up to 5 degrees) like the ones below using the nice Keras ImageDataGenerator (normalization.py line 13):
 
+![Random rotation 1][image-rot1]
+![Random rotation 2][image-rot2]
 
-![png](output_6_11.png)
+Then again, every single image is used twice, on e normally and once flipped horizontally inverting the steering label. Here are a couple of examples from the same image.
 
+![Random flipped rotation 1][image-flip-rot1]
+![Random flipped rotation 2][image-flip-rot2]
 
-    -0.548816
+The augmented datasets are 8 times bigger than the original ones.
 
+I finally randomly shuffled the data set and put 20% of the data into a validation set.
 
+I used this training data for training the model. The validation set helped determine if the model was over or under fitting.
+I left the train running for 15 epochs, after that it wasn't improving a lot. I also saw that he wasn't overfitting however, good news.
+I used the Keras ModelCheckpoint (model.py line 93) to save the model at every epoch only where the loss function was giving better results.
 
-![png](output_6_13.png)
+I used an adam optimizer so that manually training the learning rate wasn't necessary.
 
+### Here is the video record of track 1:
 
-    -0.548816
+![track 1 records](video1)
 
+[//]: # (Image References)
 
-
-![png](output_6_15.png)
-
-
-# Model
-
-Model is defined in the model.py using Keras, here we'll just import it.
-I started adapting the NVIDIA architectural found in the 
-[End to End Learning for Self-Driving Cars](http://images.nvidia.com/content/tegra/automotive/images/2016/solutions/pdf/end-to-end-dl-using-px.pdf).
-The original model itself is made of 5 convnet, followed by other 5 Dense layers.
-I added a Dropout layer set at 20% to reduce overfitting, and I added a pooling layer (MaxPooling 2x2) after the first 3 convnet, to reduce the model size.
-On my machine, using GPU, the Pooling helped fit the graphic card memory, using a batch size of 128.
-
-
-```python
-from model import get_model
-model = get_model()
-```
-
-    Loaded model from disk
-
-
-# Training
-
-For the training I used the adam optimized and the mean_squared_error as loss function.
-
-Using Keras generator to load images on batches was required given the large size of the dataset images.
-The `normalization.py` contains the generator, it randomize the datasets on every epoch and for every image choose to get the original or an horizontal flip, training on a reverse steer value.
-
-I also found it useful to slighly cut the images, to remove the car hood and the top part of the sky.  
-Images are then cutted like this `img[50:-20, :]` (50px top, 20 pixels bottom)
-
-
-
-```python
-model.compile(
-    optimizer='adam',
-    loss='mse'
-)
-
-print("Training from %s" % selected)
-tot_training_samples = len(selected)
-nb_val_samples = tot_training_samples * 20 // 100
-print("Using validation set of %d" % nb_val_samples)
-# split validation set and training set
-selected.shuffle()
-selected, validation_set = selected[:-nb_val_samples], selected[-nb_val_samples:]
-
-num_epochs = 5
-for epoch in range(num_epochs):
-    # the generator produce 8 variations for every single image
-    model.fit_generator(generator=img_set_generator_factory(selected, batch_size=8),
-                        validation_data=img_set_generator_factory(validation_set,
-                                                                  batch_size=8),
-                        nb_val_samples=len(validation_set) * 8,
-                        samples_per_epoch=len(selected) * 8,
-                        nb_epoch=1)
-    save_model(model)  # let's save on every epoch
-
-```
-
-I took 20% of the dataset for validation, the normalization is done in the model via a Lambda layer.
-For the current model, as I was mentioning before, I trained only to the sample Udacity dataset.  
-A `batch_size=8` to fit in memory and 10 generations (with a generation big as the dataset size).
-
-
-# Drive
-
-The drive part didn't require many changes, but one, that I found useful.
-
-While trying to use as less data as possible, I found that correcting the speed based on the predicted steering was really helpful.
-
-I changed the call to `send_control` to set a throttle of 0.3, accelerating, but when the speed is over 15 and the steering angle has an aplitutde > 0.1 we break a little (-1).
-
-This approach, works quite well and the car go fast enough on the straight lanes, and slow down and oscillate a little on the curves.
-
-# Future improvements
-
-Given the time constrain I didn't spent time on training and trying the 2nd track, however I left in the normalization the ImageDataGenerator keras generator, that is really promising to generate a large amount of derived images, useful for the 2nd track when we sometime have up and down shifts.
-
-For the same track, having also an augmentation based varying the image luminance could be useful.
+[model]: docimg/p3_model.png "Model Visualization"
+[video1]: docimg/video1.mp4 "Recorded video of track 1"
+[image-center]: docimg/output_6_1.png "Grayscaling"
+[image-rot1]: docimg/output_6_3.png "Random rotation 1"
+[image-rot2]: docimg/output_6_5.png "Random rotation 2"
+[image-flip-rot1]: docimg/output_6_13.png "Random flipped rotation 1"
+[image-flip-rot2]: docimg/output_6_15.png "Random flipped rotation 2"

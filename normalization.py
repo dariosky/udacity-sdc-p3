@@ -9,6 +9,7 @@ import numpy as np
 from keras.preprocessing.image import ImageDataGenerator
 from sklearn.utils import shuffle
 
+
 datagen = ImageDataGenerator(
     rotation_range=5,
     # width_shift_range=0.1,
