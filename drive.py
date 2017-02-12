@@ -39,10 +39,13 @@ def telemetry(sid, data):
         image_array, _ = invariant(image_array, steering_angle)
 
         steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
-        # throttle = 0.2
-        throttle = max(0.1, -0.15 / 0.05 * abs(steering_angle) + 0.45)
-        if speed > 15 and steering_angle > 0.2:
-            throttle = -0.1  # slightly brake on turns
+
+        # Adjust the throttle dinamically based on the steering_angle
+        throttle = max(0.1, -0.15 / 0.05 * abs(steering_angle) + 0.35)
+
+        if speed > 15 and steering_angle > 0.3:
+            throttle = -0.5  # slightly brake on turns
+
         print("{steer:>8.2f} - {throttle:>8.2f}".format(
             steer=int(steering_angle * 100),
             throttle=round(throttle, 2),

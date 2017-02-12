@@ -2,8 +2,8 @@
 from keras.layers.convolutional import Convolution2D
 from keras.layers.core import Dense, Activation, Flatten, Dropout, Lambda
 from keras.layers.pooling import MaxPooling2D
-from keras.models import Sequential
-from keras.models import load_model
+from keras.models import Sequential, load_model
+
 import keras
 from images import *
 from normalization import img_set_generator_factory
@@ -14,7 +14,7 @@ def get_model(DO_TRAIN_MODEL=False, POOLING=True):
     :type DO_TRAIN_MODEL: bool  when true, the model is also trained (even if it already exists)
     :type POOLING: bool when true we add the POOLING layes after the convnet
     """
-    image_shape = (90, 320, 3)
+    image_shape = (80, 320, 3)
     try:
         model = load_model('model.h5')
     except OSError:
@@ -95,13 +95,14 @@ def get_model(DO_TRAIN_MODEL=False, POOLING=True):
                                           mode='auto')
 
         ]
-        num_epochs = 20
+        num_epochs = 30
+        batch_size = 96
         # the generator produce 8 variations for every single image
-        model.fit_generator(generator=img_set_generator_factory(train_set, batch_size=8),
+        model.fit_generator(generator=img_set_generator_factory(train_set, batch_size=batch_size),
                             validation_data=img_set_generator_factory(validation_set,
-                                                                      batch_size=8),
-                            nb_val_samples=len(validation_set) * 8,
-                            samples_per_epoch=len(train_set) * 8,
+                                                                      batch_size=batch_size),
+                            nb_val_samples=len(validation_set),
+                            samples_per_epoch=len(train_set),
                             nb_epoch=num_epochs,
                             callbacks=callbacks
                             )

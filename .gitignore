@@ -11,4 +11,5 @@ __pycache__/
 /template
 
 # the recorded images of autonomous drive
-/images
+/recording
+/tensorboard

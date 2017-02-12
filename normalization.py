@@ -20,11 +20,12 @@ datagen = ImageDataGenerator(
 
 
 def invariant(img, steer):
-    return img[50:-20, :], steer  # no variation
+    return img[60:-20, :], steer  # no variation
 
 
 def flipped(img, steer):
-    return np.fliplr(img[50:-20, :]), -steer
+    cropped, steer = invariant(img, steer)
+    return np.fliplr(cropped), -steer
 
 
 variants = (
@@ -33,15 +34,12 @@ variants = (
 )
 
 
-def img_set_generator_factory(selected_set, image_shape=(90, 320, 3),
-                              deformation_variants=3,
+def img_set_generator_factory(selected_set, image_shape=(80, 320, 3),
                               batch_size=128):
     """ This Keras generator takes a selected_set
     (that is groups of valid center-left-right paths with steers)
     and create a batch for the fit function
     """
-    variants_number_per_image = len(variants) * (deformation_variants + 1)
-    batch_size = batch_size * (variants_number_per_image)
     batch_x = np.zeros((batch_size,) + image_shape)
     batch_y = np.zeros((batch_size), dtype=np.float32)
     s = selected_set
@@ -55,24 +53,17 @@ def img_set_generator_factory(selected_set, image_shape=(90, 320, 3),
             # we fill the batch with all the possible variants of the image:
             #   currently the straight and the hflipped version
             #   cutting the original image to avoid the car hood and the top sky
-            for variant_function in variants:
-                x, y = variant_function(img, steer)
-                batch_x[index], batch_y[index] = (x, y)  # add the undeformed image
-                index += 1
-
-                # then we use the datagen flow that creates some variant of the images
-                # with rotations and so
-                variants_iterator = datagen.flow(np.array([x]), np.array([y]))
-                for variation in range(deformation_variants):
-                    batch_x[index], batch_y[index] = variants_iterator.next()
-                    index += 1
+            chosen_variant = random.choice(variants)
+            x, y = chosen_variant(img, steer)
+            batch_x[index], batch_y[index] = (x, y)  # add the undeformed image
+            index += 1
 
             if index >= batch_size:
                 yield batch_x, batch_y
                 index = 0
 
 
-def show_variations(variations=3):
+def show_variations():
     from images import get_sample_set
     sample_set = get_sample_set()
     selected_set = sample_set
@@ -81,8 +72,7 @@ def show_variations(variations=3):
     print(cutSet)
     for batch_x, batch_y in img_set_generator_factory(cutSet,
                                                       # the batch return 1 image with all variations
-                                                      batch_size=1,
-                                                      deformation_variants=variations):
+                                                      batch_size=1):
 
         for x, y in zip(batch_x, batch_y):
             plt.imshow(x)

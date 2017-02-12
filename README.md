@@ -52,12 +52,12 @@ The model includes various ELU layers to introduce nonlinearity, and the data is
 
 #### 2. Attempts to reduce overfitting in the model
 
-The model contains a Dropout layer (20%) in order to reduce overfitting (model.py lines 52).
+The model contains a Dropout layer (20%) in order to reduce overfitting (model.py:52).
 
 After every convolutional layer a MAX Pooling layer (2x2) has been introduced to reduce the spatial size and hence reduce overfitting.
 
 The model was trained and validated on different data sets to ensure that the model was
- not overfitting (code line 84-106). (the selected dataset is the union of the Udacity sample + a serie of recordings done with the beta-simulator as 10 Feb 2017) (model.py row 71-76).
+ not overfitting (code line 84-106). (the selected dataset is the union of the Udacity sample + a serie of recordings done with the beta-simulator as 10 Feb 2017) (model.py:71-76).
 
 A validation set of 20% the dataset size is randomly chosen.
 
@@ -66,7 +66,7 @@ The model was tested by running it through the simulator and ensuring that the v
 
 #### 3. Model parameter tuning
 
-The model used an adam optimizer, so the learning rate was not tuned manually (model.py line 80).
+The model used an adam optimizer, so the learning rate was not tuned manually (model.py:80).
 
 #### 4. Appropriate training data
 
@@ -74,7 +74,7 @@ Training data was chosen to keep the vehicle driving on the road.
 
 I used a combination of center lane driving, recovering from the left and right sides of the road from the Udacity Samples (when using the stable simulator version).
 
-I then started using the beta version (Feb2017) it record only the center camera (the left/right camera are cleaned when imported in the image.py line 67-107).
+I then started using the beta version (Feb2017) it record only the center camera (the left/right camera are cleaned when imported in the image.py:67-107).
 
 To smooth the steering records (my records came from keyboard usage), I processed the training data with a rolling average. For details about how I created the training data, see the next section.
 
@@ -97,13 +97,18 @@ Namely, in previous submissions, the car was driving correctly (even if wobbling
 Also the produced steering records look a lot better, so I trained again the model and now
 it's easy also record images and video to showcase the proper driving behavior.
 
-I also preprocessed the input steering to smooth them with a rolling average of two consecutive valid records.
+I also preprocessed the input steering to smooth them with a rolling average of two consecutive valid records, where the current frame has a weight of 75% (images.py:65).
+
+The datasets, prior the augmentation are composed of a total of 64.358 images.
+46.812 center images, 8.773 left and 8.773 right images (I discarded 71.802 left/right images on straight).
+
+With augmentation (random rotation and hflip) the dataset has been expanded to 411.896 points.
 
 At the end of the process, the vehicle is able to drive autonomously around the track without leaving the road.
 
 #### 2. Final Model Architecture
 
-The final model architecture (model.py lines 27-66) consisted of the model discussed above. Keras model definition is really readable and quickly tweakable, it greatly helped experimenting various parameter changes.
+The final model architecture (model.py:27-66) consisted of the model discussed above. Keras model definition is really readable and quickly tweakable, it greatly helped experimenting various parameter changes.
 
 Here is a visualization of the architecture:
 
@@ -125,7 +130,7 @@ Here an example of a center image, color normalized from the dataset
 
 All the datasets have been normalized (to have a zero average, and ~1 sigma) and augmented.
 
-The augmentation consisted of random small rotations (up to 5 degrees) like the ones below using the nice Keras ImageDataGenerator (normalization.py line 13):
+The augmentation consisted of random small rotations (up to 5 degrees) like the ones below using the nice Keras ImageDataGenerator (normalization.py:13):
 
 ![Random rotation 1][image-rot1]
 ![Random rotation 2][image-rot2]
@@ -140,19 +145,24 @@ The augmented datasets are 8 times bigger than the original ones.
 I finally randomly shuffled the data set and put 20% of the data into a validation set.
 
 I used this training data for training the model. The validation set helped determine if the model was over or under fitting.
-I left the train running for 15 epochs, after that it wasn't improving a lot. I also saw that he wasn't overfitting however, good news.
-I used the Keras ModelCheckpoint (model.py line 93) to save the model at every epoch only where the loss function was giving better results.
+
+I set the max number of epochs to 30, but I'm using a EarlyStopping callback (model.py:94) that stops when the loss is not decreasing for 3 consecutive generations. That will made my training terminate at 13th generation (taking the results of generation 9).
+
+I used the Keras ModelCheckpoint (model.py:93) to save the model at every epoch and to keep the best result only.
 
 I used an adam optimizer so that manually training the learning rate wasn't necessary.
 
 ### Here is the video record of track 1:
 
-![track 1 records](video1)
+<video controls="controls">
+  <source type="video/mp4" src="docimg/recording.mp4"></source>
+  <p>Your browser does not support the video element.</p>
+</video>
 
 [//]: # (Image References)
 
 [model]: docimg/p3_model.png "Model Visualization"
-[video1]: docimg/video1.mp4 "Recorded video of track 1"
+[video1]: docimg/recording.mp4 "Recorded video of track 1"
 [image-center]: docimg/output_6_1.png "Grayscaling"
 [image-rot1]: docimg/output_6_3.png "Random rotation 1"
 [image-rot2]: docimg/output_6_5.png "Random rotation 2"
