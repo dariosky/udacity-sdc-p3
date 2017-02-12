@@ -10,7 +10,7 @@ def main():
         'image_folder',
         type=str,
         nargs='?',
-        default='images',
+        default='recording',
         help='Path to image folder. The video will be created from these images.'
     )
     parser.add_argument(

@@ -2,12 +2,11 @@
 import csv
 from collections import deque, defaultdict
 from pathlib import Path
-from statistics import mean
 
 from sklearn.utils import shuffle
 
-CORRECTION_LEVEL = 0.15  # intensitiy of correction for the left/right views (move to the center)
-STEERING_MAX = 0.6  # cap the steer to this amount
+CORRECTION_LEVEL = 0.10  # intensitiy of correction for the left/right views (move to the center)
+STEERING_MAX = 0.8  # cap the steer to this amount
 
 
 class ImageSet:
@@ -20,18 +19,19 @@ class ImageSet:
                  ):
         self.name = name
         self.correction = correction
+
         self.images = []
         self.steers = []
+
         self.max_steer = None
         self.min_steer = None
-
         self.skip_zeros = skip_zeros
         self.skip_sides_when_zero = skip_sides_when_zero
 
         # the named_groups are things like 'center', 'left' and 'right'
         self.counters = defaultdict(int)  # the counters, one per named_group
         # we'll keep a rolling averages of steers per named_group
-        self.rolling_windows = defaultdict(lambda: deque(maxlen=3))
+        self.rolling_windows = defaultdict(lambda: deque(maxlen=2))
 
         self.skipped_counters = defaultdict(int)
 
@@ -61,9 +61,11 @@ class ImageSet:
                 steer = -STEERING_MAX
 
             self.counters[named_group] += 1
-            self.rolling_windows[named_group].append(
-                steer)  # add the steer to the rolling window
-            steer = mean(self.rolling_windows[named_group])
+            self.rolling_windows[named_group].append(steer)  # add the steer to the rolling window
+
+            # change the steer weighting the current more
+            steer = ((sum(self.rolling_windows[named_group]) + steer * 2)
+                     / (len(self.rolling_windows[named_group]) + 2))
 
             self.images.append(imgpath)
             self.steers.append(steer)
@@ -195,6 +197,14 @@ def get_myfirst_datasets():
     result += set_from_folder(Path('/home/dario/tmp/driverecords/janstable/full_screen'),
                               name="3rd stable dataset")
     return result
+
+
+def get_all():
+    return (
+        get_sample_set() +
+        get_myfirst_datasets() +
+        get_training_set()
+    )
 
 
 if __name__ == '__main__':

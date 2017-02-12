@@ -68,12 +68,7 @@ def get_model(DO_TRAIN_MODEL=False, POOLING=True):
         DO_TRAIN_MODEL = True
 
     if DO_TRAIN_MODEL:
-        selected = (
-            get_sample_set()
-            # get_training_set() +
-            # get_refinement_set_1() +
-            # get_refinement_set_2()
-        )
+        selected = get_all()
 
         # ****************** TRAINING ***************
         model.compile(
@@ -92,9 +87,15 @@ def get_model(DO_TRAIN_MODEL=False, POOLING=True):
         callbacks = [
             keras.callbacks.ModelCheckpoint('model.h5', monitor='val_loss', verbose=0,
                                             save_best_only=True, save_weights_only=False,
-                                            mode='auto', period=1)
+                                            mode='auto', period=1),
+            keras.callbacks.CSVLogger("training.csv", separator=',', append=True),
+            keras.callbacks.TensorBoard(log_dir='./tensorboard', histogram_freq=0, write_graph=True,
+                                        write_images=False),
+            keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=0, patience=3, verbose=0,
+                                          mode='auto')
+
         ]
-        num_epochs = 2
+        num_epochs = 20
         # the generator produce 8 variations for every single image
         model.fit_generator(generator=img_set_generator_factory(train_set, batch_size=8),
                             validation_data=img_set_generator_factory(validation_set,

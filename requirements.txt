@@ -1,7 +1,10 @@
 # I'll leave the machine-learning requirements out this time
+sklearn
+
 # to run drive.py we need some extra requirements
 # web server with socketio
 flask
 eventlet
 python-socketio
 moviepy
+

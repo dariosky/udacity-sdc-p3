@@ -43,7 +43,10 @@ def telemetry(sid, data):
         throttle = max(0.1, -0.15 / 0.05 * abs(steering_angle) + 0.45)
         if speed > 15 and steering_angle > 0.2:
             throttle = -0.1  # slightly brake on turns
-        print("%8s - %8s" % (int(steering_angle * 100), round(throttle, 2)))
+        print("{steer:>8.2f} - {throttle:>8.2f}".format(
+            steer=int(steering_angle * 100),
+            throttle=round(throttle, 2),
+        ))
         send_control(steering_angle, throttle)
 
         # save frame
@@ -85,7 +88,7 @@ if __name__ == '__main__':
         'image_folder',
         type=str,
         nargs='?',
-        default='images',
+        default='recording',
         help='Path to image folder. This is where the images from the run will be saved.'
     )
     args = parser.parse_args()
